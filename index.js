@@ -1,5 +1,6 @@
 require("dotenv").config();
 const express = require("express");
+const request = require("request");
 const { google } = require("googleapis");
 
 const SHOPIF_API_PASS_WITH_TOKEN = process.env.SHOPIF_API_PASS_WITH_TOKEN;
@@ -10,8 +11,10 @@ const port = process.env.PORT || 8080;
 const app = express();
 let endpoint = "products";
 
+//middlewere
 app.use(express.json());
 
+// googl sheet
 const spreadsheetId = process.env.SHEETS_ID;
 const sheetArguments = {
   "keyFile" : "sheets-credentials.json",
@@ -19,6 +22,7 @@ const sheetArguments = {
 }
 const auth = new google.auth.GoogleAuth(sheetArguments);
 
+// the API
 app.get("/data", async (req, res)=>{
 
   const client = await auth.getClient();
@@ -29,9 +33,32 @@ app.get("/data", async (req, res)=>{
   const getRow = await googleSheets.spreadsheets.values.get({
     auth, spreadsheetId, range: "Sheet1"
   });
-  
-  res.send(getRow.data);
 
+  // shopify api essential
+  let productId = 8326422233384;
+  const updateBody = {
+    "product": {
+      "id": productId,
+      "title": "Antique Drawers I am here"
+    }
+  };
+  // product update
+  const updateString = {
+    "method": "PUT",
+    "url": `https://${SHOPIF_API_KEY}:${SHOPIF_API_PASS_WITH_TOKEN}@${STORE_URL}/admin/api/2023-10/${endpoint}/${productId}.json`,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(updateBody)
+  }
+
+  request(updateString,(err, resp)=>{
+    if (err) {
+      throw new Error(err);
+    }
+    res.send(resp.body)
+  })
+  
 })
 
 app.listen(port, () => {
